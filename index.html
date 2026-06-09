@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0E1612">
+<title>Wayfinder</title>
+<style>
+  :root {
+    --bg: #0E1612;
+    --surface: #1C2A22;
+    --surface-2: #243528;
+    --amber: #F2A33C;
+    --bone: #EDE7DA;
+    --sage: #8FA396;
+    --line: rgba(143,163,150,0.25);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--bone);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* ---------- Start screen ---------- */
+  #startScreen {
+    position: fixed; inset: 0; z-index: 50;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 32px;
+  }
+  #startScreen h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600; font-size: 42px; letter-spacing: 0.5px;
+  }
+  #startScreen p { color: var(--sage); font-size: 15px; line-height: 1.5; max-width: 280px; }
+  .blaze {
+    width: 44px; height: 56px;
+    background: var(--amber);
+    clip-path: polygon(50% 0%, 100% 38%, 78% 38%, 78% 100%, 22% 100%, 22% 38%, 0% 38%);
+    margin-bottom: 6px;
+  }
+  #startBtn {
+    margin-top: 14px;
+    background: var(--amber); color: #1a1208;
+    border: none; border-radius: 999px;
+    font-size: 17px; font-weight: 600;
+    padding: 14px 38px; cursor: pointer;
+  }
+  #startBtn:active { transform: scale(0.97); }
+  #startNote { font-size: 12px; color: var(--sage); opacity: 0.8; }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px 6px;
+  }
+  header .title {
+    font-family: Georgia, serif; font-size: 20px; letter-spacing: 0.4px;
+  }
+  #rescanBtn {
+    background: var(--surface); color: var(--bone);
+    border: 1px solid var(--line); border-radius: 999px;
+    font-size: 13px; padding: 7px 14px; cursor: pointer;
+  }
+  #rescanBtn:active { background: var(--surface-2); }
+
+  /* ---------- Radius selector ---------- */
+  #radiusRow {
+    display: flex; gap: 8px; justify-content: center;
+    padding: 6px 20px 0;
+  }
+  .radiusBtn {
+    background: var(--surface); color: var(--sage);
+    border: 1px solid var(--line); border-radius: 999px;
+    font-size: 13px; padding: 7px 16px; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .radiusBtn.active {
+    background: var(--amber); color: #1a1208;
+    border-color: var(--amber); font-weight: 600;
+  }
+
+  /* ---------- Interest chips ---------- */
+  #interestRow {
+    display: flex; gap: 8px;
+    overflow-x: auto;
+    padding: 8px 20px 0;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  #interestRow::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    background: transparent; color: var(--sage);
+    border: 1px solid var(--line); border-radius: 999px;
+    font-size: 12px; padding: 6px 13px; cursor: pointer;
+    white-space: nowrap;
+  }
+  .chip.active {
+    color: var(--amber); border-color: var(--amber);
+    background: rgba(242,163,60,0.08);
+  }
+
+  /* ---------- Compass ---------- */
+  #compassWrap {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 0;
+  }
+  #bezel {
+    position: relative;
+    width: min(62vw, 280px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* tick marks */
+  #bezel .tick {
+    position: absolute; left: 50%; top: 0;
+    width: 2px; height: 10px;
+    background: var(--line);
+    transform-origin: 50% calc(min(62vw,280px) / 2);
+  }
+  #arrow {
+    width: 34%; height: 44%;
+    background: var(--amber);
+    clip-path: polygon(50% 0%, 100% 38%, 72% 38%, 72% 100%, 28% 100%, 28% 38%, 0% 38%);
+    transition: transform 0.15s linear;
+    filter: drop-shadow(0 0 18px rgba(242,163,60,0.35));
+  }
+  #distance {
+    margin-top: 22px;
+    font-size: 34px; font-weight: 300; letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  #targetName {
+    margin-top: 4px; font-size: 14px; color: var(--sage);
+    max-width: 80vw; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #status {
+    margin-top: 10px; font-size: 12px; color: var(--sage); opacity: 0.7;
+    text-align: center; padding: 0 24px;
+  }
+
+  /* ---------- Card deck ---------- */
+  #deck {
+    display: flex; gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 8px 24px calc(22px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #deck::-webkit-scrollbar { display: none; }
+  .card {
+    flex: 0 0 78%;
+    max-width: 320px;
+    scroll-snap-align: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .card.selected {
+    border-color: var(--amber);
+    background: var(--surface-2);
+  }
+  .card h3 {
+    font-family: Georgia, serif;
+    font-size: 17px; font-weight: 600; margin-bottom: 4px;
+  }
+  .card .meta {
+    font-size: 12px; color: var(--amber); margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card p {
+    font-size: 13px; line-height: 1.45; color: var(--sage);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card .hint { margin-top: 8px; font-size: 11px; color: var(--sage); opacity: 0.6; }
+  .card.selected .hint { color: var(--amber); opacity: 0.9; }
+
+  .empty {
+    color: var(--sage); font-size: 14px; padding: 20px 24px; text-align: center; width: 100%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #arrow { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <div class="blaze"></div>
+  <h1>Wayfinder</h1>
+  <p>Finds interesting places within walking distance and points the way.</p>
+  <button id="startBtn">Start exploring</button>
+  <span id="startNote">You'll be asked to allow Location and Motion access.</span>
+</div>
+
+<header>
+  <span class="title">Wayfinder</span>
+  <button id="rescanBtn">Rescan</button>
+</header>
+
+<div id="radiusRow">
+  <button class="radiusBtn" data-miles="0.5">0.5 mi</button>
+  <button class="radiusBtn active" data-miles="1">1 mi</button>
+  <button class="radiusBtn" data-miles="2">2 mi</button>
+</div>
+
+<div id="interestRow"></div>
+
+<div id="compassWrap">
+  <div id="bezel"><div id="arrow"></div></div>
+  <div id="distance">—</div>
+  <div id="targetName">Pick a destination below</div>
+  <div id="status"></div>
+</div>
+
+<div id="deck"><div class="empty">Scanning…</div></div>
+
+<script>
+(function () {
+  // ======================================================================
+  // PASTE YOUR GOOGLE MAPS PLATFORM API KEY BETWEEN THE QUOTES BELOW.
+  // Get one at console.cloud.google.com → enable "Places API (New)".
+  // Restrict the key to your site (HTTP referrer: benmtest.github.io/*).
+  // Leave as-is to run on Wikipedia + OpenStreetMap only.
+  // ======================================================================
+  const GOOGLE_API_KEY = "PASTE_YOUR_KEY_HERE";
+
+  const INTERESTS = [
+    { id: "history",   label: "History",      gtypes: ["historical_landmark", "monument", "historical_place"] },
+    { id: "nature",    label: "Nature",       gtypes: ["park", "national_park", "state_park", "hiking_area", "botanical_garden", "garden"] },
+    { id: "art",       label: "Art & Culture",gtypes: ["art_gallery", "museum", "cultural_center", "performing_arts_theater"] },
+    { id: "landmarks", label: "Landmarks",    gtypes: ["tourist_attraction", "observation_deck", "plaza"] },
+    { id: "food",      label: "Food & Drink", gtypes: ["cafe", "bakery", "restaurant", "coffee_shop"] },
+  ];
+  const FOOD_TYPES = new Set(INTERESTS.find(i => i.id === "food").gtypes);
+
+  const state = {
+    lat: null, lon: null,
+    heading: null,          // compass heading, deg clockwise from true north
+    places: [],
+    target: null,
+    arrowAngle: 0,          // accumulated for smooth wrap-around rotation
+    radius: 1609,           // search radius in meters (default 1 mile)
+    interests: loadInterests(),
+  };
+
+  function loadInterests() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("wayfinder-interests"));
+      if (Array.isArray(saved) && saved.length) return new Set(saved);
+    } catch (_) {}
+    return new Set(["history", "nature", "landmarks"]);   // sensible default
+  }
+  function saveInterests() {
+    try { localStorage.setItem("wayfinder-interests", JSON.stringify([...state.interests])); } catch (_) {}
+  }
+
+  const $ = id => document.getElementById(id);
+  const arrow = $("arrow"), distanceEl = $("distance"),
+        targetNameEl = $("targetName"), statusEl = $("status"),
+        deck = $("deck"), bezel = $("bezel");
+
+  // bezel tick marks every 30°
+  for (let i = 0; i < 12; i++) {
+    const t = document.createElement("div");
+    t.className = "tick";
+    t.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
+    bezel.appendChild(t);
+  }
+
+  // interest chips
+  const interestRow = $("interestRow");
+  INTERESTS.forEach(intr => {
+    const chip = document.createElement("button");
+    chip.className = "chip" + (state.interests.has(intr.id) ? " active" : "");
+    chip.textContent = intr.label;
+    chip.addEventListener("click", () => {
+      if (state.interests.has(intr.id)) state.interests.delete(intr.id);
+      else state.interests.add(intr.id);
+      chip.classList.toggle("active");
+      saveInterests();
+      state.target = null;
+      if (state.lat != null) fetchPlaces();
+    });
+    interestRow.appendChild(chip);
+  });
+
+  // ---------- math ----------
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+
+  function haversineMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function bearingDeg(lat1, lon1, lat2, lon2) {
+    const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+              Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2-lon1));
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  }
+
+  function fmtDistance(m) {
+    const ft = m * 3.28084;
+    if (ft < 1000) return Math.round(ft / 10) * 10 + " ft";
+    return (m / 1609.34).toFixed(1) + " mi";
+  }
+
+  // ---------- rendering ----------
+  function updateCompass() {
+    if (!state.target || state.lat == null) return;
+    const d = haversineMeters(state.lat, state.lon, state.target.lat, state.target.lon);
+    distanceEl.textContent = fmtDistance(d);
+    targetNameEl.textContent = state.target.title;
+
+    if (state.heading == null) {
+      statusEl.textContent = "Compass unavailable — arrow shows direction relative to north.";
+      rotateArrow(bearingDeg(state.lat, state.lon, state.target.lat, state.target.lon));
+      return;
+    }
+    statusEl.textContent = "";
+    const brg = bearingDeg(state.lat, state.lon, state.target.lat, state.target.lon);
+    rotateArrow(brg - state.heading);
+  }
+
+  function rotateArrow(targetDeg) {
+    // shortest-path rotation so the arrow doesn't spin the long way around
+    let delta = ((targetDeg - state.arrowAngle) % 360 + 540) % 360 - 180;
+    state.arrowAngle += delta;
+    arrow.style.transform = `rotate(${state.arrowAngle}deg)`;
+  }
+
+  function renderDeck() {
+    deck.innerHTML = "";
+    if (!state.places.length) {
+      deck.innerHTML = '<div class="empty">Nothing notable found nearby. Try Rescan from a different spot.</div>';
+      return;
+    }
+    state.places.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card" + (state.target && state.target.pageid === p.pageid ? " selected" : "");
+      card.innerHTML = `
+        <h3>${p.title}</h3>
+        <div class="meta">${fmtDistance(p.dist)} away${p.rating ? " · ★ " + p.rating.toFixed(1) : ""}</div>
+        <p>${p.extract || "No description available."}</p>
+        <div class="hint">${state.target && state.target.pageid === p.pageid ? "● Navigating here" : "Tap to navigate"}</div>`;
+      card.addEventListener("click", () => {
+        state.target = p;
+        renderDeck();
+        updateCompass();
+      });
+      deck.appendChild(card);
+    });
+  }
+
+  // ---------- data ----------
+  async function queryWikipedia(radius) {
+    const url = "https://en.wikipedia.org/w/api.php" +
+      "?action=query&format=json&origin=*" +
+      "&generator=geosearch" +
+      `&ggscoord=${state.lat}|${state.lon}` +
+      `&ggsradius=${Math.min(radius, 10000)}&ggslimit=20` +
+      "&prop=extracts|coordinates" +
+      "&exintro=1&explaintext=1&exsentences=2&exlimit=20";
+    const res = await fetch(url);
+    const data = await res.json();
+    const pages = data.query ? Object.values(data.query.pages) : [];
+    return pages
+      .filter(p => p.coordinates && p.coordinates.length)
+      .map(p => ({
+        pageid: "wiki-" + p.pageid,
+        title: p.title,
+        extract: p.extract,
+        lat: p.coordinates[0].lat,
+        lon: p.coordinates[0].lon,
+      }));
+  }
+
+  function humanizeTag(v) {
+    return v.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function osmCategory(tags) {
+    if (tags.historic) return humanizeTag(tags.historic === "yes" ? "historic site" : tags.historic);
+    if (tags.tourism)  return humanizeTag(tags.tourism);
+    if (tags.natural)  return humanizeTag(tags.natural);
+    if (tags.leisure)  return humanizeTag(tags.leisure);
+    if (tags.amenity)  return humanizeTag(tags.amenity);
+    return "Point of interest";
+  }
+
+  async function queryOSM(radius) {
+    const r = Math.round(radius), la = state.lat, lo = state.lon;
+    const q = `[out:json][timeout:25];(
+      node["tourism"~"attraction|viewpoint|artwork|museum|gallery|monument|picnic_site"]["name"](around:${r},${la},${lo});
+      node["historic"]["name"](around:${r},${la},${lo});
+      way["historic"]["name"](around:${r},${la},${lo});
+      node["leisure"~"park|garden|nature_reserve"]["name"](around:${r},${la},${lo});
+      way["leisure"~"park|garden|nature_reserve"]["name"](around:${r},${la},${lo});
+      node["natural"~"peak|waterfall|beach|spring"]["name"](around:${r},${la},${lo});
+      node["amenity"~"fountain|marketplace"]["name"](around:${r},${la},${lo});
+    );out center 60;`;
+    const res = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "data=" + encodeURIComponent(q),
+    });
+    const data = await res.json();
+    return (data.elements || [])
+      .filter(el => el.tags && el.tags.name)
+      .map(el => ({
+        pageid: "osm-" + el.type + el.id,
+        title: el.tags.name,
+        osmCat: osmCategory(el.tags),
+        extract: el.tags.description ||
+                 (osmCategory(el.tags) + ". A local spot mapped on OpenStreetMap."),
+        lat: el.lat != null ? el.lat : (el.center ? el.center.lat : null),
+        lon: el.lon != null ? el.lon : (el.center ? el.center.lon : null),
+      }))
+      .filter(p => p.lat != null);
+  }
+
+  const normName = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  function googleEnabled() {
+    return GOOGLE_API_KEY && GOOGLE_API_KEY !== "PASTE_YOUR_KEY_HERE";
+  }
+
+  async function queryGoogle(radius) {
+    if (!googleEnabled()) return [];
+    const active = INTERESTS.filter(i => state.interests.size === 0 || state.interests.has(i.id));
+    const types = [...new Set(active.flatMap(i => i.gtypes))];
+    if (!types.length) return [];
+    const res = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_API_KEY,
+        "X-Goog-FieldMask":
+          "places.displayName,places.location,places.types,places.rating," +
+          "places.userRatingCount,places.editorialSummary,places.primaryTypeDisplayName",
+      },
+      body: JSON.stringify({
+        includedTypes: types,
+        maxResultCount: 20,
+        rankPreference: "POPULARITY",
+        locationRestriction: {
+          circle: {
+            center: { latitude: state.lat, longitude: state.lon },
+            radius: Math.min(radius, 50000),
+          },
+        },
+      }),
+    });
+    if (!res.ok) throw new Error("Google Places " + res.status);
+    const data = await res.json();
+    return (data.places || [])
+      .map(p => ({
+        pageid: "g-" + normName(p.displayName ? p.displayName.text : "") + Math.round(p.location.latitude * 1e5),
+        title: p.displayName ? p.displayName.text : "Unnamed place",
+        extract: (p.editorialSummary && p.editorialSummary.text) ||
+                 (p.primaryTypeDisplayName ? p.primaryTypeDisplayName.text + "." : "A notable nearby spot."),
+        lat: p.location.latitude,
+        lon: p.location.longitude,
+        types: p.types || [],
+        rating: p.rating || null,
+        ratingCount: p.userRatingCount || 0,
+        source: "google",
+      }))
+      // food places must earn their card: well-rated and well-reviewed only
+      .filter(p => {
+        const isFood = p.types.some(t => FOOD_TYPES.has(t));
+        return !isFood || (p.rating >= 4.4 && p.ratingCount >= 100);
+      });
+  }
+
+  // taste score: how likely is this to be worth the walk?
+  function scorePlace(p) {
+    let s = 0;
+    if (p.pageid.startsWith("wiki-")) s += 3;             // notable enough for an encyclopedia
+    if (p.rating) {
+      s += (p.rating - 3.5) * 1.5;                        // quality
+      s += Math.min(Math.log10(p.ratingCount + 1), 3);    // crowd confidence
+    }
+    const t = p.types || [];
+    INTERESTS.forEach(i => {
+      if (state.interests.has(i.id) && t.some(x => i.gtypes.includes(x))) s += 2;
+    });
+    if (p.osmCat) {
+      const matches = {
+        history:   /historic|memorial|monument|ruins|castle|fort/i,
+        nature:    /park|garden|nature|peak|waterfall|beach|spring|reserve/i,
+        art:       /artwork|gallery|museum/i,
+        landmarks: /viewpoint|attraction|fountain|monument/i,
+      };
+      Object.entries(matches).forEach(([id, re]) => {
+        if (state.interests.has(id) && re.test(p.osmCat)) s += 2;
+      });
+    }
+    s -= p.dist / 800;                                    // gentle distance penalty (~2 pts/mile)
+    return s;
+  }
+
+  async function fetchPlaces() {
+    deck.innerHTML = '<div class="empty">Scanning…</div>';
+    statusEl.textContent = "";
+    try {
+      const [wiki, osm, goog] = await Promise.allSettled([
+        queryWikipedia(state.radius),
+        queryOSM(state.radius),
+        queryGoogle(state.radius),
+      ]);
+      const wikiPlaces = wiki.status === "fulfilled" ? wiki.value : [];
+      const osmPlaces  = osm.status === "fulfilled" ? osm.value : [];
+      const googPlaces = goog.status === "fulfilled" ? goog.value : [];
+
+      // dedupe by name: Wikipedia wins, then Google, then OSM
+      const seen = new Set();
+      const nameTaken = n => {
+        for (const s of seen) {
+          if (s === n || s.includes(n) || n.includes(s)) return true;
+        }
+        return false;
+      };
+      const merged = [];
+      [wikiPlaces, googPlaces, osmPlaces].forEach(list => {
+        list.forEach(p => {
+          const n = normName(p.title);
+          if (!n || nameTaken(n)) return;
+          seen.add(n);
+          merged.push(p);
+        });
+      });
+
+      state.places = merged
+        .map(p => ({ ...p, dist: haversineMeters(state.lat, state.lon, p.lat, p.lon) }))
+        .filter(p => p.dist <= state.radius)
+        .map(p => ({ ...p, score: scorePlace(p) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 30);
+
+      if (!wikiPlaces.length && !osmPlaces.length && !googPlaces.length &&
+          [wiki, osm, goog].every(r => r.status !== "fulfilled")) {
+        deck.innerHTML = '<div class="empty">Couldn\'t reach any data source. Check your connection and tap Rescan.</div>';
+        return;
+      }
+      const notes = [];
+      if (osm.status !== "fulfilled") notes.push("OpenStreetMap is busy");
+      if (googleEnabled() && goog.status !== "fulfilled") notes.push("Google Places unavailable");
+      if (notes.length) statusEl.textContent = notes.join(" · ") + " — showing remaining sources.";
+
+      if (state.places.length && !state.target) {
+        state.target = state.places[0];
+      }
+      renderDeck();
+      updateCompass();
+    } catch (e) {
+      deck.innerHTML = '<div class="empty">Something went wrong while scanning. Tap Rescan to retry.</div>';
+    }
+  }
+
+  // ---------- sensors ----------
+  function startLocation() {
+    if (!navigator.geolocation) {
+      statusEl.textContent = "Location is not supported in this browser.";
+      return;
+    }
+    navigator.geolocation.watchPosition(
+      pos => {
+        const first = state.lat == null;
+        state.lat = pos.coords.latitude;
+        state.lon = pos.coords.longitude;
+        if (first) fetchPlaces();
+        else updateCompass();
+      },
+      err => {
+        statusEl.textContent = "Location denied. Enable it in Settings → Privacy → Location Services → Safari.";
+        deck.innerHTML = '<div class="empty">Location access is required to scan for places.</div>';
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
+    );
+  }
+
+  function handleOrientation(e) {
+    if (typeof e.webkitCompassHeading === "number" && !isNaN(e.webkitCompassHeading)) {
+      state.heading = e.webkitCompassHeading;          // iOS: clockwise from north
+    } else if (e.absolute && e.alpha != null) {
+      state.heading = (360 - e.alpha) % 360;           // rough fallback
+    }
+    updateCompass();
+  }
+
+  async function startCompass() {
+    if (typeof DeviceOrientationEvent !== "undefined" &&
+        typeof DeviceOrientationEvent.requestPermission === "function") {
+      try {
+        const perm = await DeviceOrientationEvent.requestPermission();
+        if (perm === "granted") {
+          window.addEventListener("deviceorientation", handleOrientation, true);
+        } else {
+          statusEl.textContent = "Motion access denied — arrow will show direction relative to north.";
+        }
+      } catch (_) { /* user dismissed */ }
+    } else {
+      window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+      window.addEventListener("deviceorientation", handleOrientation, true);
+    }
+  }
+
+  // ---------- wire-up ----------
+  $("startBtn").addEventListener("click", async () => {
+    $("startScreen").style.display = "none";
+    await startCompass();   // must be inside the tap gesture for iOS
+    startLocation();
+  });
+
+  $("rescanBtn").addEventListener("click", () => {
+    state.target = null;
+    if (state.lat != null) fetchPlaces();
+  });
+
+  document.querySelectorAll(".radiusBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".radiusBtn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.radius = parseFloat(btn.dataset.miles) * 1609.34;
+      state.target = null;
+      if (state.lat != null) fetchPlaces();
+    });
+  });
+})();
+</script>
+</body>
+</html>
